@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * Service class for user-related business logic.
+ * Handles registration, authentication, password checking, and user lookup.
  */
 @Service
 public class UserService {
@@ -25,7 +26,6 @@ public class UserService {
      */
     public User registerUser(UserRegisterDTO registerDTO) {
         User user = new User();
-        user.setUsername(registerDTO.getUsername());
         user.setEmail(registerDTO.getEmail());
         user.setPassword(passwordEncoder.encode(registerDTO.getPassword())); // Hash password
         user.setRole(registerDTO.getRole());
@@ -41,5 +41,24 @@ public class UserService {
     public User authenticateUser(String email, String password) {
         // TODO: Implement authentication logic
         return null;
+    }
+
+    /**
+     * Checks if the raw password matches the encoded password.
+     * @param rawPassword Plain text password
+     * @param encodedPassword Hashed password
+     * @return True if passwords match, false otherwise
+     */
+    public boolean checkPassword(String rawPassword, String encodedPassword) {
+        return passwordEncoder.matches(rawPassword, encodedPassword);
+    }
+
+    /**
+     * Finds a user by email.
+     * @param email User email
+     * @return User entity or null if not found
+     */
+    public User findByEmail(String email) {
+        return userRepository.findByEmail(email).orElse(null);
     }
 } 
