@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import * as authService from "../services/authService";
+import firebaseAuthService from "../services/firebaseAuthService";
 import { toast } from "react-toastify";
 
 /**
- * AuthContext provides authentication state and actions to the app.
- * Includes user info, JWT token, and auth functions.
+ * AuthContext provides Firebase authentication state and actions to the app.
+ * Includes user info, authentication state, and auth functions.
  */
 const AuthContext = createContext();
 
@@ -16,47 +16,58 @@ const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
 /**
- * AuthProvider component to wrap the app and provide authentication state.
- * Handles persistent login, sign-in, sign-out, and registration.
+ * AuthProvider component to wrap the app and provide Firebase authentication state.
+ * Handles persistent login, sign-in, sign-out, and registration using Firebase Auth.
  * @param {object} props - React children
  * @returns {JSX.Element} Auth context provider
  */
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(
-    () => JSON.parse(localStorage.getItem("user")) || null
-  );
-  const [token, setToken] = useState(
-    () => localStorage.getItem("token") || null
-  );
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user && token) {
-      localStorage.setItem("user", JSON.stringify(user));
-      localStorage.setItem("token", token);
-    } else {
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
-    }
-  }, [user, token]);
+    // Listen to Firebase authentication state changes
+    const unsubscribe = firebaseAuthService.onAuthStateChange(
+      (firebaseUser) => {
+        if (firebaseUser) {
+          // User is signed in
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            emailVerified: firebaseUser.emailVerified,
+            photoURL: firebaseUser.photoURL,
+          });
+        } else {
+          // User is signed out
+          setUser(null);
+        }
+        setLoading(false);
+      }
+    );
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []);
 
   /**
-   * Sign in a user and store token and user info in context/localStorage.
-   * @param {string} email
-   * @param {string} password
+   * Sign in a user using Firebase authentication.
+   * @param {string} email - User's email address
+   * @param {string} password - User's password
    * @returns {Promise<void>}
    */
   const signIn = async (email, password) => {
     try {
-      const {
-        token,
-        email: userEmail,
-        role,
-      } = await authService.signIn(email, password);
-      setToken(token);
-      setUser({ email: userEmail, role });
-      toast.success("Signed in successfully!");
-      navigate("/");
+      const result = await firebaseAuthService.signInUser(email, password);
+
+      if (result.success) {
+        toast.success(result.message);
+        navigate("/");
+      } else {
+        toast.error(result.error);
+        throw new Error(result.error);
+      }
     } catch (err) {
       toast.error(err.message || "Sign in failed");
       throw err;
@@ -64,17 +75,27 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Register a new user and redirect to sign-in page.
-   * @param {string} email
-   * @param {string} password
-   * @param {string} role
+   * Register a new user using Firebase authentication.
+   * @param {string} email - User's email address
+   * @param {string} password - User's password
+   * @param {string} displayName - User's display name
    * @returns {Promise<void>}
    */
-  const register = async (email, password, role) => {
+  const register = async (email, password, displayName) => {
     try {
-      await authService.register(email, password, role);
-      toast.success("Registered successfully! Please sign in.");
-      navigate("/signin");
+      const result = await firebaseAuthService.registerUser(
+        email,
+        password,
+        displayName
+      );
+
+      if (result.success) {
+        toast.success(result.message);
+        navigate("/signin");
+      } else {
+        toast.error(result.error);
+        throw new Error(result.error);
+      }
     } catch (err) {
       toast.error(err.message || "Registration failed");
       throw err;
@@ -82,18 +103,53 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Sign out the current user and clear context/localStorage.
+   * Sign out the current user using Firebase authentication.
    */
-  const signOut = () => {
-    setUser(null);
-    setToken(null);
-    toast.info("Signed out");
-    navigate("/signin");
+  const signOut = async () => {
+    try {
+      const result = await firebaseAuthService.signOutUser();
+
+      if (result.success) {
+        toast.info(result.message);
+        navigate("/signin");
+      } else {
+        toast.error(result.error);
+      }
+    } catch (err) {
+      toast.error("Sign out failed");
+    }
   };
 
-  return (
-    <AuthContext.Provider value={{ user, token, signIn, signOut, register }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  /**
+   * Send password reset email.
+   * @param {string} email - User's email address
+   * @returns {Promise<void>}
+   */
+  const resetPassword = async (email) => {
+    try {
+      const result = await firebaseAuthService.resetPassword(email);
+
+      if (result.success) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.error);
+        throw new Error(result.error);
+      }
+    } catch (err) {
+      toast.error(err.message || "Password reset failed");
+      throw err;
+    }
+  };
+
+  const value = {
+    user,
+    loading,
+    signIn,
+    signOut,
+    register,
+    resetPassword,
+    isAuthenticated: !!user,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

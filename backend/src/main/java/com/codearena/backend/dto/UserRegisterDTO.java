@@ -18,4 +18,7 @@ public class UserRegisterDTO {
 
     @NotBlank
     private String role;
+
+    @NotBlank
+    private String displayName;
 } 

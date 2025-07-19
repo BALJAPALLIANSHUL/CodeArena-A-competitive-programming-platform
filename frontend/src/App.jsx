@@ -8,99 +8,132 @@ import {
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import SignIn from "./pages/SignIn";
 import Register from "./pages/Register";
+import FirebaseTest from "./components/FirebaseTest";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-const roleWelcome = {
-  USER: {
-    heading: "Welcome, Coder!",
-    message:
-      "Ready to solve problems and improve your skills? Dive into the arena!",
-    accent: "bg-blue-100 text-blue-800",
-    button: "bg-blue-600 hover:bg-blue-700",
-  },
-  SETTER: {
-    heading: "Welcome, Problem Setter!",
-    message: "Create, edit, and manage problems for the community.",
-    accent: "bg-green-100 text-green-800",
-    button: "bg-green-600 hover:bg-green-700",
-  },
-  MOD: {
-    heading: "Welcome, Moderator!",
-    message: "Monitor submissions, manage contests, and keep the arena fair.",
-    accent: "bg-yellow-100 text-yellow-800",
-    button: "bg-yellow-500 hover:bg-yellow-600",
-  },
-  ADMIN: {
-    heading: "Welcome, Admin!",
-    message: "Full access to all features. Oversee the platform and analytics.",
-    accent: "bg-purple-100 text-purple-800",
-    button: "bg-purple-600 hover:bg-purple-700",
-  },
-};
-
+/**
+ * Home component for authenticated users
+ * Displays welcome message and user information
+ */
 const Home = () => {
   const { user, signOut } = useAuth();
-  // Default to USER if no role (for legacy users)
-  const role = (user?.role || "USER").toUpperCase();
-  const welcome = roleWelcome[role] || roleWelcome.USER;
+
   return (
-    <div
-      className={`w-full max-w-md bg-white rounded-xl shadow-lg p-8 mx-auto flex flex-col items-center border ${welcome.accent}`}
-    >
-      <h1 className="text-2xl font-bold mb-2 font-condensed text-center">
-        {welcome.heading}
-      </h1>
-      <p className="mb-4 text-center text-base font-sans">{welcome.message}</p>
-      <div className="mb-6 text-gray-700 text-center text-sm">
-        Signed in as{" "}
-        <span className="font-mono font-semibold">{user?.email}</span>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <h1 className="text-4xl font-extrabold text-gray-900 mb-2">
+            CodeArena
+          </h1>
+          <h2 className="text-2xl font-bold text-gray-700">Welcome back!</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Ready to solve problems and improve your skills? Dive into the
+            arena!
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-lg p-8 border">
+          <div className="text-center space-y-4">
+            <div className="mb-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {user?.displayName || "User"}
+              </h3>
+              <p className="text-sm text-gray-600">{user?.email}</p>
+              {user?.emailVerified ? (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
+                  Email Verified
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">
+                  Email Not Verified
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <button className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Browse Problems
+              </button>
+              <button className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                Join Contest
+              </button>
+              <button
+                className="w-full py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                onClick={signOut}
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-      <button
-        className={`w-full py-2 px-4 rounded transition font-bold shadow text-white ${welcome.button}`}
-        onClick={signOut}
-      >
-        Sign Out
-      </button>
     </div>
   );
 };
 
+/**
+ * Loading component while authentication state is being determined
+ */
+const LoadingSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+      <p className="text-gray-600">Loading...</p>
+    </div>
+  </div>
+);
+
+/**
+ * Protected route component that checks authentication
+ * @param {Object} props - Component props
+ * @param {React.ReactNode} props.children - Child components to render if authenticated
+ * @returns {React.ReactNode} Protected content or redirect
+ */
 const ProtectedRoute = ({ children }) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
   return user ? children : <Navigate to="/signin" />;
 };
 
+/**
+ * Main App component with routing and authentication
+ */
 function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen w-full flex flex-col font-sans bg-gray-50 text-gray-900">
-          <header className="w-full py-4 shadow bg-white">
-            <div className="max-w-6xl mx-auto px-4 flex items-center">
-              <h1 className="text-2xl font-bold font-condensed m-0">
-                CodeArena
-              </h1>
-            </div>
-          </header>
-          <main className="flex-1 flex items-center justify-center">
-            <Routes>
-              <Route path="/signin" element={<SignIn />} />
-              <Route path="/register" element={<Register />} />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Home />
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-          </main>
-          <footer className="w-full py-4 text-center text-sm text-gray-500 bg-white mt-8">
-            &copy; {new Date().getFullYear()} CodeArena. All rights reserved.
-          </footer>
-          <ToastContainer position="top-center" autoClose={3000} />
+        <div className="min-h-screen bg-gray-50">
+          <Routes>
+            <Route path="/signin" element={<SignIn />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/test" element={<FirebaseTest />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Home />
+                </ProtectedRoute>
+              }
+            />
+            {/* Redirect any unknown routes to home */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          <ToastContainer
+            position="top-center"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+          />
         </div>
       </AuthProvider>
     </Router>

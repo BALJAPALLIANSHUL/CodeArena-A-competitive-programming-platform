@@ -1,0 +1,57 @@
+{
+  "name": "codearena",
+  "version": "1.0.0",
+  "description": "A competitive programming platform with Firebase authentication and hosting",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter frontend dev",
+    "dev:backend": "cd backend && ./mvnw spring-boot:run",
+    "dev:all": "concurrently \"pnpm run dev:backend\" \"pnpm run dev\"",
+    "build": "pnpm --filter frontend build",
+    "build:backend": "cd backend && ./mvnw clean package",
+    "build:all": "pnpm run build:backend && pnpm run build",
+    "preview": "pnpm --filter frontend preview",
+    "lint": "pnpm --filter frontend lint",
+    "lint:fix": "pnpm --filter frontend lint --fix",
+    "test": "pnpm --filter frontend test",
+    "test:backend": "cd backend && ./mvnw test",
+    "test:all": "pnpm run test:backend && pnpm run test",
+    "clean": "pnpm --filter frontend clean && cd backend && ./mvnw clean",
+    "install:all": "pnpm install",
+    "deploy": "pnpm run build && firebase deploy --only hosting",
+    "deploy:preview": "pnpm run build && firebase hosting:channel:deploy preview",
+    "firebase:login": "firebase login",
+    "firebase:init": "firebase init",
+    "firebase:use": "firebase use",
+    "firebase:projects": "firebase projects:list",
+    "firebase:emulators": "firebase emulators:start",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
+  },
+  "keywords": [
+    "competitive-programming",
+    "firebase",
+    "react",
+    "spring-boot",
+    "java",
+    "tailwindcss",
+    "authentication",
+    "microservices"
+  ],
+  "author": "CodeArena Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/codearena.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/codearena/issues"
+  },
+  "homepage": "https://github.com/your-username/codearena#readme"
+} 
