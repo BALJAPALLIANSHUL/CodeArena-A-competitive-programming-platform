@@ -18,6 +18,21 @@ import "react-toastify/dist/ReactToastify.css";
  */
 const Home = () => {
   const { user, signOut } = useAuth();
+  const [idToken, setIdToken] = React.useState("");
+  const [showToken, setShowToken] = React.useState(false);
+
+  React.useEffect(() => {
+    // Fetch the ID token for the current user
+    async function fetchToken() {
+      if (user && window.firebase?.auth?.currentUser) {
+        const token = await window.firebase.auth.currentUser.getIdToken();
+        setIdToken(token);
+      } else {
+        setIdToken("");
+      }
+    }
+    fetchToken();
+  }, [user]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -50,6 +65,37 @@ const Home = () => {
                 </span>
               )}
             </div>
+
+            {/* Debug: Show Firebase ID Token for API testing */}
+            {user && (
+              <div className="mb-4 text-left">
+                <button
+                  className="text-xs text-blue-600 underline mb-1"
+                  onClick={() => setShowToken((v) => !v)}
+                >
+                  {showToken ? "Hide" : "Show"} Firebase ID Token
+                </button>
+                {showToken && idToken && (
+                  <div className="bg-gray-100 rounded p-2 text-xs break-all relative">
+                    <textarea
+                      className="w-full bg-gray-100 text-xs font-mono resize-none outline-none"
+                      rows={4}
+                      value={idToken}
+                      readOnly
+                      style={{ minHeight: 60 }}
+                    />
+                    <button
+                      className="absolute top-1 right-1 px-2 py-0.5 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+                      onClick={() => {
+                        navigator.clipboard.writeText(idToken);
+                      }}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-3">
               <button className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">

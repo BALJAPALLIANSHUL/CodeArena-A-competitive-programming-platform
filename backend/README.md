@@ -25,3 +25,9 @@ The API and business logic for CodeArena, built with Spring Boot. Manages users,
 - Use JavaDoc for all classes and methods
 - Follow layered architecture
 - Keep business logic in services
+
+## Authentication & User Registration
+
+- The backend does **not** store user passwords.
+- Registration is a two-step process: users are created in Firebase Auth, then registered in the backend for role management.
+- The backend expects only `email`, `role`, and `displayName` for registration.

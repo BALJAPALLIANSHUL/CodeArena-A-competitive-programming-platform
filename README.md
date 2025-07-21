@@ -5,6 +5,7 @@ A full-stack competitive programming platform built with React, Spring Boot, and
 ## 🚀 Features
 
 - **User Authentication**: Firebase-based authentication with email verification
+  - **Note:** User registration is handled by Firebase Authentication on the frontend. After successful registration, the frontend automatically registers the user in the backend for role management. **Passwords are never sent to or stored in the backend.**
 - **Problem Management**: CRUD operations for coding problems with test cases
 - **Real-time Submissions**: Live submission tracking and results
 - **Secure Code Execution**: Containerized judge service with resource limits
@@ -204,16 +205,16 @@ gcloud run deploy codearena-judge \
 
 ## 🔧 Development Scripts
 
-| Script                       | Description                       |
-| ---------------------------- | --------------------------------- |
-| `pnpm run dev`               | Start frontend development server |
-| `pnpm run dev:backend`       | Start backend development server  |
-| `pnpm run dev:all`           | Start both frontend and backend   |
-| `pnpm run build`             | Build frontend for production     |
-| `pnpm run test`              | Run frontend tests                |
-| `pnpm run lint`              | Lint frontend code                |
-| `pnpm run deploy`            | Deploy to Firebase Hosting        |
-| `pnpm run firebase:emulators`| Start Firebase emulators          |
+| Script                        | Description                       |
+| ----------------------------- | --------------------------------- |
+| `pnpm run dev`                | Start frontend development server |
+| `pnpm run dev:backend`        | Start backend development server  |
+| `pnpm run dev:all`            | Start both frontend and backend   |
+| `pnpm run build`              | Build frontend for production     |
+| `pnpm run test`               | Run frontend tests                |
+| `pnpm run lint`               | Lint frontend code                |
+| `pnpm run deploy`             | Deploy to Firebase Hosting        |
+| `pnpm run firebase:emulators` | Start Firebase emulators          |
 
 ## 📚 Documentation
 

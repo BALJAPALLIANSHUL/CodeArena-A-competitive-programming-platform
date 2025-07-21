@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Register a new user using Firebase authentication.
+   * Register a new user using Firebase authentication and backend.
    * @param {string} email - User's email address
    * @param {string} password - User's password
    * @param {string} displayName - User's display name
@@ -83,6 +83,7 @@ export const AuthProvider = ({ children }) => {
    */
   const register = async (email, password, displayName) => {
     try {
+      // Step 1: Register in Firebase Auth
       const result = await firebaseAuthService.registerUser(
         email,
         password,
@@ -90,6 +91,20 @@ export const AuthProvider = ({ children }) => {
       );
 
       if (result.success) {
+        // Step 2: Register in backend
+        const backendResponse = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, role: "USER", displayName }),
+        });
+        if (!backendResponse.ok) {
+          // If backend registration fails, delete Firebase user for consistency
+          if (window.firebase?.auth?.currentUser) {
+            await window.firebase.auth.currentUser.delete();
+          }
+          toast.error("Backend registration failed. Please try again.");
+          throw new Error("Backend registration failed");
+        }
         toast.success(result.message);
         navigate("/signin");
       } else {

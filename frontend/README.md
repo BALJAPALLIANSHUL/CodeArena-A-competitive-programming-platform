@@ -22,3 +22,9 @@ The user-facing web application for CodeArena, built with ReactJS. Handles regis
 - Use functional components and hooks
 - Document each component with JSDoc-style comments
 - Keep UI clean and modular
+
+## Authentication Flow
+
+- User registers via Firebase Auth (email, password, display name).
+- After successful registration, the frontend calls the backend `/api/auth/register` endpoint to create a user role.
+- Passwords are managed by Firebase only and never sent to the backend.
