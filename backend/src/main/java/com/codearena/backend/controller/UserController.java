@@ -2,6 +2,7 @@ package com.codearena.backend.controller;
 
 import com.codearena.backend.dto.UserRegisterDTO;
 import com.codearena.backend.entity.UserRole;
+import com.codearena.backend.exception.ApiException;
 import com.codearena.backend.service.FirebaseAuthService;
 import com.codearena.backend.service.UserService;
 import com.google.firebase.auth.FirebaseAuthException;
@@ -40,7 +41,7 @@ public class UserController {
         String idToken = request.get("idToken");
         
         if (idToken == null || idToken.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "ID token is required"));
+            throw ApiException.badRequest("ID token is required");
         }
 
         try {
@@ -70,7 +71,7 @@ public class UserController {
             return ResponseEntity.ok(response);
             
         } catch (FirebaseAuthException e) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid ID token"));
+            throw ApiException.unauthorized("Invalid ID token");
         }
     }
 
@@ -87,7 +88,7 @@ public class UserController {
             
             // Check if user role already exists in our database
             if (userService.existsByEmail(registerDTO.getEmail())) {
-                return ResponseEntity.badRequest().body(Map.of("error", "User already exists"));
+                throw ApiException.badRequest("User already exists");
             }
             
             // Create user role entry
@@ -96,7 +97,7 @@ public class UserController {
             return ResponseEntity.ok(userRole);
             
         } catch (FirebaseAuthException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "User not found in Firebase"));
+            throw ApiException.badRequest("User not found in Firebase");
         }
     }
 
@@ -109,14 +110,14 @@ public class UserController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         
         if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+            throw ApiException.unauthorized("Not authenticated");
         }
         
         String uid = authentication.getName();
         UserRole userRole = userService.findByFirebaseUid(uid);
         
         if (userRole == null) {
-            return ResponseEntity.status(404).body(Map.of("error", "User role not found"));
+            throw ApiException.notFound("User role not found");
         }
         
         Map<String, Object> response = new HashMap<>();
