@@ -231,19 +231,7 @@ gcloud run deploy codearena-judge \
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 🆘 Support
 
-- **Issues**: [GitHub Issues](https://github.com/your-username/codearena/issues)
-- **Documentation**: [Project Wiki](https://github.com/your-username/codearena/wiki)
-- **Email**: support@codearena.com
-
-## 🙏 Acknowledgments
-
-- Firebase team for authentication and hosting
-- Google Cloud Platform for infrastructure
-- React and Spring Boot communities
-- All contributors and maintainers
+- **Issues**: [GitHub Issues](https://github.com/BALJAPALLIANSHUL/CodeArena/issues)
+- **Email**: anshulpatel3535@gmail.com
