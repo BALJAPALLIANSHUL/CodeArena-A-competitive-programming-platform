@@ -25,9 +25,13 @@ public class SecurityConfig {
             .cors(cors -> cors.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/verify", "/api/auth/register").permitAll()
-                .requestMatchers("/api/test/health", "/api/test/firebase-status").permitAll()
-                .requestMatchers("/h2-console/**").permitAll() // Allow H2 console for development
+                .requestMatchers(
+                    "/api/auth/verify", "/api/auth/register",
+                    "/api/test/health", "/api/test/firebase-status",
+                    "/h2-console/**",
+                    // Swagger/OpenAPI endpoints
+                    "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-resources/**", "/webjars/**"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(firebaseAuthFilter, UsernamePasswordAuthenticationFilter.class);

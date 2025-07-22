@@ -36,3 +36,6 @@ build/
 ### Firebase ###
 firebase-service-account.json
 *firebase*service*account*.json
+
+# Ignore application.properties with secrets
+src/main/resources/application.properties

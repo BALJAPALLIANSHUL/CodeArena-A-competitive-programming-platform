@@ -1,6 +1,8 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { auth } from "../config/firebase";
+import { toast } from "react-toastify";
 
 /**
  * SignIn page component for Firebase authentication.
@@ -10,12 +12,17 @@ import { useAuth } from "../context/AuthContext";
  * @returns {JSX.Element}
  */
 const SignIn = () => {
-  const { signIn, resetPassword } = useAuth();
+  const { signIn, resetPassword, completeBackendRegistration } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [showResetForm, setShowResetForm] = useState(false);
+  const [showCompleteRegistration, setShowCompleteRegistration] =
+    useState(false);
+  const [firebaseUserForRecovery, setFirebaseUserForRecovery] = useState(null);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   /**
    * Handles sign in form submission.
@@ -25,11 +32,31 @@ const SignIn = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setShowCompleteRegistration(false);
+    setFirebaseUserForRecovery(null);
+    setError("");
     try {
+      // Use AuthContext signIn for all logic and error handling
       await signIn(email, password);
-    } finally {
-      setLoading(false);
+      setError(""); // Clear error on success
+    } catch (err) {
+      // Only set inline error for validation/user errors
+      if (
+        err.message ===
+          "Please verify your email before logging in. Check your inbox for a verification link." ||
+        err.message === "No account found with this email address." ||
+        err.message === "Incorrect password. Please try again." ||
+        err.message === "This account has been disabled." ||
+        err.message === "Too many failed attempts. Please try again later." ||
+        err.message.includes("invalid email")
+      ) {
+        setError(err.message || "Sign in failed");
+      } else {
+        setError(""); // Clear inline error for backend/network/internal errors
+        toast.error(err.message || "Sign in failed. Please try again.");
+      }
     }
+    setLoading(false);
   };
 
   /**
@@ -66,6 +93,33 @@ const SignIn = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-8 border">
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4 text-sm">
+              {error}
+            </div>
+          )}
+          {showCompleteRegistration && firebaseUserForRecovery && (
+            <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-2 rounded mb-4 text-sm flex flex-col items-center">
+              <span>
+                Your account exists in Firebase but is not fully registered in
+                CodeArena.
+                <br />
+                Please click below to complete your registration.
+              </span>
+              <button
+                onClick={async () => {
+                  try {
+                    await completeBackendRegistration(firebaseUserForRecovery);
+                  } catch (err) {
+                    // Error toast already shown in context
+                  }
+                }}
+                className="mt-3 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Complete Registration
+              </button>
+            </div>
+          )}
           {!showResetForm ? (
             // Sign In Form
             <form onSubmit={handleSubmit} className="space-y-6">

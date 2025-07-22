@@ -10,7 +10,8 @@ import { useAuth } from "../context/AuthContext";
  * @returns {JSX.Element}
  */
 const Register = () => {
-  const { register } = useAuth();
+  const { register, retryBackendRegistration, pendingBackendRegistration } =
+    useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -44,7 +45,18 @@ const Register = () => {
       await register(email, password, displayName);
       setError(""); // Clear error on success
     } catch (err) {
-      setError(err.message || "Registration failed");
+      // Only set inline error for validation/user errors
+      if (
+        err.message.includes("Passwords do not match") ||
+        err.message.includes("Password must be at least") ||
+        err.message.includes("email already exists") ||
+        err.message.includes("weak password") ||
+        err.message.includes("invalid email")
+      ) {
+        setError(err.message);
+      } else {
+        setError(""); // Clear inline error, toast is already shown in context
+      }
     } finally {
       setLoading(false);
     }
@@ -64,6 +76,28 @@ const Register = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-8 border">
+          {pendingBackendRegistration && (
+            <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-2 rounded mb-4 text-sm flex flex-col items-center">
+              <span>
+                Registration in Firebase succeeded, but our server could not
+                complete your registration.
+                <br />
+                Please click below to retry backend registration.
+              </span>
+              <button
+                onClick={async () => {
+                  try {
+                    await retryBackendRegistration();
+                  } catch (err) {
+                    // Error toast already shown in context
+                  }
+                }}
+                className="mt-3 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Retry Registration
+              </button>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4 text-sm">

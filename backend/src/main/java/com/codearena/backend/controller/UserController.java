@@ -10,6 +10,9 @@ import java.util.Set;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.codearena.backend.dto.UserRegisterDTO;
 import jakarta.validation.Valid;
+import com.codearena.backend.dto.ApiResponse;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.codearena.backend.service.FirebaseAuthService;
 
 /**
  * REST controller for user and role management endpoints.
@@ -20,10 +23,12 @@ import jakarta.validation.Valid;
 public class UserController {
     private final UserService userService;
     private final RoleService roleService;
+    private final FirebaseAuthService firebaseAuthService;
 
-    public UserController(UserService userService, RoleService roleService) {
+    public UserController(UserService userService, RoleService roleService, FirebaseAuthService firebaseAuthService) {
         this.userService = userService;
         this.roleService = roleService;
+        this.firebaseAuthService = firebaseAuthService;
     }
 
     /**
@@ -34,13 +39,22 @@ public class UserController {
     @PostMapping("/auth/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody UserRegisterDTO dto) {
         if (dto.getFirebaseUid() == null || dto.getFirebaseUid().isEmpty()) {
-            return ResponseEntity.badRequest().body("firebaseUid must not be null or empty");
+            return ResponseEntity.badRequest().body(ApiResponse.error("firebaseUid must not be null or empty", "VALIDATION_ERROR"));
         }
         if (dto.getEmail() == null || dto.getEmail().isEmpty()) {
-            return ResponseEntity.badRequest().body("email must not be null or empty");
+            return ResponseEntity.badRequest().body(ApiResponse.error("email must not be null or empty", "VALIDATION_ERROR"));
         }
         if (dto.getDisplayName() == null || dto.getDisplayName().isEmpty()) {
-            return ResponseEntity.badRequest().body("displayName must not be null or empty");
+            return ResponseEntity.badRequest().body(ApiResponse.error("displayName must not be null or empty", "VALIDATION_ERROR"));
+        }
+        // Guard: Check if Firebase UID exists in Firebase Auth
+        try {
+            firebaseAuthService.getUserByUid(dto.getFirebaseUid());
+        } catch (FirebaseAuthException e) {
+            return ResponseEntity.status(400).body(ApiResponse.error(
+                "Firebase user does not exist. Please register via the frontend.",
+                "FIREBASE_USER_NOT_FOUND"
+            ));
         }
         User created = userService.registerUser(dto.getFirebaseUid(), dto.getEmail(), dto.getDisplayName());
         return ResponseEntity.ok(created);
@@ -78,10 +92,10 @@ public class UserController {
      * @return The user info or 404 if not found
      */
     @GetMapping("/users/{uid}")
-    public ResponseEntity<User> getUser(@PathVariable String uid) {
+    public ResponseEntity<?> getUser(@PathVariable String uid) {
         return userService.findByUid(uid)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .<ResponseEntity<?>>map(user -> ResponseEntity.ok(user))
+                .orElse(ResponseEntity.status(404).body(ApiResponse.error("User not found in backend. Please complete registration.", "USER_NOT_FOUND")));
     }
 
     /**
