@@ -13,6 +13,7 @@ import org.springframework.web.context.request.WebRequest;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
 
 /**
  * Global exception handler for consistent error responses across the application.
@@ -114,6 +115,32 @@ public class GlobalExceptionHandler {
         response.setPath(request.getDescription(false));
         
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
+    /**
+     * Handles database integrity violations (e.g., duplicate email or UID).
+     * @param ex Data integrity violation exception
+     * @param request Web request for context
+     * @return Standardized error response
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(DataIntegrityViolationException ex, WebRequest request) {
+        log.warn("Data integrity violation: {}", ex.getMessage());
+        String userMessage = "A database error occurred.";
+        String errorCode = "DATA_INTEGRITY_ERROR";
+        String msg = ex.getRootCause() != null ? ex.getRootCause().getMessage() : ex.getMessage();
+        if (msg != null) {
+            if (msg.contains("UK6dotkott2kjsp8vw4d0m25fb7") || msg.contains("Duplicate entry") && msg.contains("for key 'users.UK6dotkott2kjsp8vw4d0m25fb7'")) {
+                userMessage = "A user with this email already exists.";
+                errorCode = "EMAIL_EXISTS";
+            } else if (msg.contains("PRIMARY") && msg.contains("Duplicate entry")) {
+                userMessage = "A user with this UID already exists.";
+                errorCode = "UID_EXISTS";
+            }
+        }
+        ApiResponse<Void> response = ApiResponse.error(userMessage, errorCode);
+        response.setPath(request.getDescription(false));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     /**

@@ -16,11 +16,29 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
+    /**
+     * Indicates if the response is successful.
+     */
     private boolean success;
+    /**
+     * Success or error message.
+     */
     private String message;
+    /**
+     * Data payload of the response.
+     */
     private T data;
+    /**
+     * Error details if any.
+     */
     private String error;
+    /**
+     * Timestamp of the response.
+     */
     private LocalDateTime timestamp;
+    /**
+     * Request path for the response.
+     */
     private String path;
 
     /**

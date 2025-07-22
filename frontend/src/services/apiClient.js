@@ -1,6 +1,8 @@
 /**
  * Centralized API client for CodeArena frontend.
  * Provides consistent error handling, authentication, and request/response interceptors.
+ *
+ * @module apiClient
  */
 
 // Base API configuration
@@ -8,7 +10,9 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const API_TIMEOUT = 30000; // 30 seconds
 
 /**
- * Custom error class for API errors
+ * Custom error class for API errors.
+ * @class
+ * @extends Error
  */
 class ApiError extends Error {
     constructor(message, status, code, data = null) {
@@ -21,7 +25,8 @@ class ApiError extends Error {
 }
 
 /**
- * API client class with request/response interceptors
+ * API client class with request/response interceptors.
+ * @class
  */
 class ApiClient {
     constructor() {

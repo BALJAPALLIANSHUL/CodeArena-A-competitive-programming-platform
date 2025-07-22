@@ -9,8 +9,17 @@ import org.springframework.http.HttpStatus;
  */
 @Getter
 public class ApiException extends RuntimeException {
+    /**
+     * HTTP status code for the error.
+     */
     private final HttpStatus status;
+    /**
+     * Custom error code for the error.
+     */
     private final String errorCode;
+    /**
+     * User-friendly error message.
+     */
     private final String userMessage;
 
     /**

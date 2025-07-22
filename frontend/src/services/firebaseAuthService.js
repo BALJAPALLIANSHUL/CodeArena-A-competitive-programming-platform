@@ -11,8 +11,10 @@ import {
 import { auth } from '../config/firebase';
 
 /**
- * Firebase Authentication Service
- * Provides methods for user authentication using Firebase Auth
+ * Firebase Authentication Service for CodeArena.
+ * Provides methods for user authentication using Firebase Auth.
+ *
+ * @class
  */
 class FirebaseAuthService {
     /**

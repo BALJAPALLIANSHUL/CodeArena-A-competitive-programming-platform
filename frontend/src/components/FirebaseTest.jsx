@@ -1,38 +1,57 @@
-import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { auth } from '../config/firebase';
+import React, { useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { auth } from "../config/firebase";
 
 /**
- * Firebase Test Component
- * Simple component to test Firebase authentication functionality
+ * FirebaseTest component for testing Firebase authentication flows.
+ * Allows sign in, registration, and sign out using test credentials.
+ * Displays current authentication state and Firebase config status.
+ *
+ * @component
+ * @returns {JSX.Element}
  */
 const FirebaseTest = () => {
   const { user, signIn, signOut, register } = useAuth();
-  const [email, setEmail] = useState('test@example.com');
-  const [password, setPassword] = useState('password123');
-  const [displayName, setDisplayName] = useState('Test User');
+  const [email, setEmail] = useState("test@example.com");
+  const [password, setPassword] = useState("password123");
+  const [displayName, setDisplayName] = useState("Test User");
 
+  /**
+   * Handles test sign in using the provided email and password.
+   * @async
+   * @returns {Promise<void>}
+   */
   const handleTestSignIn = async () => {
     try {
       await signIn(email, password);
     } catch (error) {
-      console.error('Test sign in failed:', error);
+      console.error("Test sign in failed:", error);
     }
   };
 
+  /**
+   * Handles test registration using the provided email, password, and display name.
+   * @async
+   * @returns {Promise<void>}
+   */
   const handleTestRegister = async () => {
     try {
       await register(email, password, displayName);
     } catch (error) {
-      console.error('Test registration failed:', error);
+      console.error("Test registration failed:", error);
     }
   };
 
+  /**
+   * Handles test sign out for the current user.
+   * @async
+   * @returns {Promise<void>}
+   */
   const handleTestSignOut = async () => {
     try {
       await signOut();
     } catch (error) {
-      console.error('Test sign out failed:', error);
+      console.error("Test sign out failed:", error);
     }
   };
 
@@ -41,15 +60,24 @@ const FirebaseTest = () => {
       <h2 className="text-2xl font-bold mb-4 text-center text-blue-600">
         Firebase Auth Test
       </h2>
-      
+
       <div className="mb-4 p-3 bg-gray-100 rounded">
         <h3 className="font-semibold mb-2">Current Auth State:</h3>
         {user ? (
           <div>
-            <p><strong>Signed in as:</strong> {user.email}</p>
-            <p><strong>UID:</strong> {user.uid}</p>
-            <p><strong>Display Name:</strong> {user.displayName || 'N/A'}</p>
-            <p><strong>Email Verified:</strong> {user.emailVerified ? 'Yes' : 'No'}</p>
+            <p>
+              <strong>Signed in as:</strong> {user.email}
+            </p>
+            <p>
+              <strong>UID:</strong> {user.uid}
+            </p>
+            <p>
+              <strong>Display Name:</strong> {user.displayName || "N/A"}
+            </p>
+            <p>
+              <strong>Email Verified:</strong>{" "}
+              {user.emailVerified ? "Yes" : "No"}
+            </p>
           </div>
         ) : (
           <p className="text-red-600">Not signed in</p>
@@ -78,7 +106,9 @@ const FirebaseTest = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Display Name:</label>
+          <label className="block text-sm font-medium mb-1">
+            Display Name:
+          </label>
           <input
             type="text"
             value={displayName}
@@ -114,11 +144,15 @@ const FirebaseTest = () => {
 
       <div className="mt-4 p-3 bg-yellow-100 rounded">
         <h4 className="font-semibold mb-2">Firebase Config Status:</h4>
-        <p><strong>Auth Instance:</strong> {auth ? '✅ Loaded' : '❌ Failed'}</p>
-        <p><strong>Project ID:</strong> {auth?.app?.options?.projectId || 'N/A'}</p>
+        <p>
+          <strong>Auth Instance:</strong> {auth ? "✅ Loaded" : "❌ Failed"}
+        </p>
+        <p>
+          <strong>Project ID:</strong> {auth?.app?.options?.projectId || "N/A"}
+        </p>
       </div>
     </div>
   );
 };
 
-export default FirebaseTest; 
+export default FirebaseTest;

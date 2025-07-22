@@ -3,8 +3,11 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 /**
- * Register component for Firebase authentication
- * Provides user registration with email, password, and display name
+ * Register page component for Firebase authentication.
+ * Provides user registration with email, password, and display name.
+ *
+ * @component
+ * @returns {JSX.Element}
  */
 const Register = () => {
   const { register } = useAuth();
@@ -13,29 +16,35 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   /**
-   * Handle registration form submission
-   * @param {Event} e - Form submit event
+   * Handles registration form submission.
+   * @param {React.FormEvent<HTMLFormElement>} e - Form submit event
+   * @returns {Promise<void>}
    */
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
     // Validate passwords match
     if (password !== confirmPassword) {
-      alert("Passwords do not match!");
+      setError("Passwords do not match!");
       return;
     }
 
     // Validate password length
     if (password.length < 6) {
-      alert("Password must be at least 6 characters long!");
+      setError("Password must be at least 6 characters long!");
       return;
     }
 
     setLoading(true);
     try {
       await register(email, password, displayName);
+      setError(""); // Clear error on success
+    } catch (err) {
+      setError(err.message || "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -56,6 +65,11 @@ const Register = () => {
 
         <div className="bg-white rounded-lg shadow-lg p-8 border">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4 text-sm">
+                {error}
+              </div>
+            )}
             <div>
               <label
                 htmlFor="displayName"
@@ -67,7 +81,10 @@ const Register = () => {
                 id="displayName"
                 type="text"
                 value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
+                onChange={(e) => {
+                  setDisplayName(e.target.value);
+                  setError("");
+                }}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter your full name"
@@ -85,7 +102,10 @@ const Register = () => {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError("");
+                }}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter your email"
@@ -103,7 +123,10 @@ const Register = () => {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError("");
+                }}
                 required
                 minLength={6}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -122,7 +145,10 @@ const Register = () => {
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  setError("");
+                }}
                 required
                 minLength={6}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"

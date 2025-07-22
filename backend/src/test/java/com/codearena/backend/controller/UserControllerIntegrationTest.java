@@ -1,14 +1,16 @@
 package com.codearena.backend.controller;
 
-import com.codearena.backend.dto.UserRegisterDTO;
-import com.codearena.backend.entity.UserRole;
-import com.codearena.backend.repository.UserRoleRepository;
+import com.codearena.backend.entity.Role;
+import com.codearena.backend.entity.User;
+import com.codearena.backend.repository.RoleRepository;
+import com.codearena.backend.repository.UserRepository;
 import com.codearena.backend.service.FirebaseAuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.firebase.auth.FirebaseToken;
 import com.google.firebase.auth.UserRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,6 +22,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.util.HashSet;
+import java.util.Optional;
+
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -27,7 +32,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Integration tests for UserController
+ * Integration tests for UserController (new user-role model)
  */
 @SpringBootTest
 @AutoConfigureWebMvc
@@ -38,7 +43,9 @@ class UserControllerIntegrationTest {
     private WebApplicationContext context;
 
     @Autowired
-    private UserRoleRepository userRoleRepository;
+    private UserRepository userRepository;
+    @Autowired
+    private RoleRepository roleRepository;
 
     @MockBean
     private FirebaseAuthService firebaseAuthService;
@@ -54,24 +61,27 @@ class UserControllerIntegrationTest {
             .webAppContextSetup(context)
             .apply(springSecurity())
             .build();
-        
         // Clear test data
-        userRoleRepository.deleteAll();
+        userRepository.deleteAll();
+        roleRepository.deleteAll();
     }
 
     @Test
     void verifyToken_ValidToken_ReturnsUserInfo() throws Exception {
-        // Arrange
         String validToken = "valid-firebase-token";
         var mockToken = mock(FirebaseToken.class);
         when(mockToken.getUid()).thenReturn("test-uid-123");
         when(mockToken.getEmail()).thenReturn("test@example.com");
         when(mockToken.getName()).thenReturn("Test User");
         when(mockToken.isEmailVerified()).thenReturn(true);
-        
         when(firebaseAuthService.verifyIdToken(validToken)).thenReturn(mockToken);
 
-        // Act & Assert
+        // Create user in DB
+        Role userRole = roleRepository.save(new Role(null, "USER"));
+        User user = new User("test-uid-123", "test@example.com", "Test User", true, new HashSet<>());
+        user.getRoles().add(userRole);
+        userRepository.save(user);
+
         mockMvc.perform(post("/api/auth/verify")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"idToken\": \"" + validToken + "\"}"))
@@ -79,17 +89,16 @@ class UserControllerIntegrationTest {
             .andExpect(jsonPath("$.uid").value("test-uid-123"))
             .andExpect(jsonPath("$.email").value("test@example.com"))
             .andExpect(jsonPath("$.displayName").value("Test User"))
-            .andExpect(jsonPath("$.emailVerified").value(true));
+            .andExpect(jsonPath("$.emailVerified").value(true))
+            .andExpect(jsonPath("$.role").exists()); // role is now a set
     }
 
     @Test
     void verifyToken_InvalidToken_ReturnsUnauthorized() throws Exception {
-        // Arrange
         String invalidToken = "invalid-token";
         when(firebaseAuthService.verifyIdToken(invalidToken))
             .thenThrow(new IllegalArgumentException("Invalid token"));
 
-        // Act & Assert
         mockMvc.perform(post("/api/auth/verify")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"idToken\": \"" + invalidToken + "\"}"))
@@ -98,87 +107,77 @@ class UserControllerIntegrationTest {
 
     @Test
     void registerUser_ValidData_ReturnsSuccess() throws Exception {
-        // Arrange
-        UserRegisterDTO registerDTO = new UserRegisterDTO();
-        registerDTO.setEmail("newuser@example.com");
-        registerDTO.setRole("USER");
-        registerDTO.setDisplayName("New User");
+        var payload = new java.util.HashMap<String, Object>();
+        payload.put("firebaseUid", "new-uid-123");
+        payload.put("email", "newuser@example.com");
+        payload.put("displayName", "New User");
 
-        // Act & Assert
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(registerDTO)))
+                .content(objectMapper.writeValueAsString(payload)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message").value("User registered successfully"));
+            .andExpect(jsonPath("$.firebaseUid").value("new-uid-123"))
+            .andExpect(jsonPath("$.email").value("newuser@example.com"))
+            .andExpect(jsonPath("$.displayName").value("New User"));
     }
 
     @Test
     void registerUser_InvalidData_ReturnsBadRequest() throws Exception {
-        // Arrange
-        UserRegisterDTO registerDTO = new UserRegisterDTO();
-        registerDTO.setEmail("invalid-email");
-        registerDTO.setRole("USER");
-        registerDTO.setDisplayName("");
+        var payload = new java.util.HashMap<String, Object>();
+        payload.put("firebaseUid", "");
+        payload.put("email", "invalid-email");
+        payload.put("displayName", "");
 
-        // Act & Assert
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(registerDTO)))
+                .content(objectMapper.writeValueAsString(payload)))
             .andExpect(status().isBadRequest());
     }
 
     @Test
-    void registerUser_DuplicateEmail_ReturnsConflict() throws Exception {
-        // Arrange
-        UserRegisterDTO registerDTO = new UserRegisterDTO();
-        registerDTO.setEmail("existing@example.com");
-        registerDTO.setRole("USER");
-        registerDTO.setDisplayName("Existing User");
-
+    void registerUser_DuplicateUid_ReturnsBadRequest() throws Exception {
         // Create existing user
-        UserRole existingUser = new UserRole("existing-uid", "existing@example.com", "USER", "Existing User");
-        userRoleRepository.save(existingUser);
+        Role userRole = roleRepository.save(new Role(null, "USER"));
+        User user = new User("existing-uid", "existing@example.com", "Existing User", true, new HashSet<>());
+        user.getRoles().add(userRole);
+        userRepository.save(user);
 
-        // Act & Assert
+        var payload = new java.util.HashMap<String, Object>();
+        payload.put("firebaseUid", "existing-uid");
+        payload.put("email", "existing@example.com");
+        payload.put("displayName", "Existing User");
+
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(registerDTO)))
-            .andExpect(status().isConflict());
+                .content(objectMapper.writeValueAsString(payload)))
+            .andExpect(status().isBadRequest());
     }
 
     @Test
     @WithMockUser(username = "test-uid-123")
-    void getCurrentUser_AuthenticatedUser_ReturnsUserInfo() throws Exception {
-        // Arrange
-        UserRole userRole = new UserRole("test-uid-123", "test@example.com", "USER", "Test User");
-        userRoleRepository.save(userRole);
+    void getUser_AuthenticatedUser_ReturnsUserInfo() throws Exception {
+        // Create user in DB
+        Role userRole = roleRepository.save(new Role(null, "USER"));
+        User user = new User("test-uid-123", "test@example.com", "Test User", true, new HashSet<>());
+        user.getRoles().add(userRole);
+        userRepository.save(user);
 
-        var mockUserRecord = mock(UserRecord.class);
-        when(mockUserRecord.getUid()).thenReturn("test-uid-123");
-        when(mockUserRecord.getEmail()).thenReturn("test@example.com");
-        when(mockUserRecord.getDisplayName()).thenReturn("Test User");
-        when(mockUserRecord.isEmailVerified()).thenReturn(true);
-        
-        when(firebaseAuthService.getUserByUid("test-uid-123")).thenReturn(mockUserRecord);
-
-        // Act & Assert
-        mockMvc.perform(get("/api/auth/me"))
+        mockMvc.perform(get("/api/users/test-uid-123"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.uid").value("test-uid-123"))
+            .andExpect(jsonPath("$.firebaseUid").value("test-uid-123"))
             .andExpect(jsonPath("$.email").value("test@example.com"))
-            .andExpect(jsonPath("$.role").value("USER"));
+            .andExpect(jsonPath("$.displayName").value("Test User"))
+            .andExpect(jsonPath("$.roles").isArray());
     }
 
     @Test
-    void getCurrentUser_UnauthenticatedUser_ReturnsUnauthorized() throws Exception {
-        // Act & Assert
-        mockMvc.perform(get("/api/auth/me"))
-            .andExpect(status().isUnauthorized());
+    void getUser_NonexistentUser_ReturnsNotFound() throws Exception {
+        mockMvc.perform(get("/api/users/nonexistent-uid"))
+            .andExpect(status().isNotFound());
     }
 
     @Test
     void healthCheck_ReturnsOk() throws Exception {
-        // Act & Assert
         mockMvc.perform(get("/api/test/health"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("UP"))

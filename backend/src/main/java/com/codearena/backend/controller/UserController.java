@@ -1,132 +1,95 @@
 package com.codearena.backend.controller;
 
-import com.codearena.backend.dto.UserRegisterDTO;
-import com.codearena.backend.entity.UserRole;
-import com.codearena.backend.exception.ApiException;
-import com.codearena.backend.service.FirebaseAuthService;
+import com.codearena.backend.entity.User;
+import com.codearena.backend.entity.Role;
 import com.codearena.backend.service.UserService;
-import com.google.firebase.auth.FirebaseAuthException;
-import com.google.firebase.auth.FirebaseToken;
-import jakarta.validation.Valid;
+import com.codearena.backend.service.RoleService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Set;
+import org.springframework.security.access.prepost.PreAuthorize;
+import com.codearena.backend.dto.UserRegisterDTO;
+import jakarta.validation.Valid;
 
 /**
- * Controller for user authentication endpoints.
- * Handles Firebase token verification and user role management.
+ * REST controller for user and role management endpoints.
+ * Handles user registration, role assignment, and user info retrieval.
  */
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api")
 public class UserController {
     private final UserService userService;
-    private final FirebaseAuthService firebaseAuthService;
+    private final RoleService roleService;
 
-    public UserController(UserService userService, FirebaseAuthService firebaseAuthService) {
+    public UserController(UserService userService, RoleService roleService) {
         this.userService = userService;
-        this.firebaseAuthService = firebaseAuthService;
+        this.roleService = roleService;
     }
 
     /**
-     * Verifies a Firebase ID token and returns user information.
-     * @param request Map containing the Firebase ID token
-     * @return User information if token is valid
+     * Registers a new user and assigns the default USER role.
+     * @param dto User registration data
+     * @return The created user or error response
      */
-    @PostMapping("/verify")
-    public ResponseEntity<?> verifyToken(@RequestBody Map<String, String> request) {
-        String idToken = request.get("idToken");
-        
-        if (idToken == null || idToken.isEmpty()) {
-            throw ApiException.badRequest("ID token is required");
+    @PostMapping("/auth/register")
+    public ResponseEntity<?> registerUser(@Valid @RequestBody UserRegisterDTO dto) {
+        if (dto.getFirebaseUid() == null || dto.getFirebaseUid().isEmpty()) {
+            return ResponseEntity.badRequest().body("firebaseUid must not be null or empty");
         }
-
-        try {
-            // Verify the Firebase ID token
-            FirebaseToken decodedToken = firebaseAuthService.verifyIdToken(idToken);
-            String uid = decodedToken.getUid();
-            String email = decodedToken.getEmail();
-            
-            // Check if user role exists in our database
-            UserRole userRole = userService.findByFirebaseUid(uid);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("uid", uid);
-            response.put("email", email);
-            response.put("emailVerified", decodedToken.isEmailVerified());
-            
-            if (userRole != null) {
-                response.put("role", userRole.getRole());
-                response.put("displayName", userRole.getDisplayName());
-                response.put("isActive", userRole.getIsActive());
-            } else {
-                response.put("role", null);
-                response.put("displayName", null);
-                response.put("isActive", false);
-            }
-            
-            return ResponseEntity.ok(response);
-            
-        } catch (FirebaseAuthException e) {
-            throw ApiException.unauthorized("Invalid ID token");
+        if (dto.getEmail() == null || dto.getEmail().isEmpty()) {
+            return ResponseEntity.badRequest().body("email must not be null or empty");
         }
+        if (dto.getDisplayName() == null || dto.getDisplayName().isEmpty()) {
+            return ResponseEntity.badRequest().body("displayName must not be null or empty");
+        }
+        User created = userService.registerUser(dto.getFirebaseUid(), dto.getEmail(), dto.getDisplayName());
+        return ResponseEntity.ok(created);
     }
 
     /**
-     * Creates a user role entry for a Firebase user.
-     * @param registerDTO Registration data (email, role, displayName)
-     * @return The created user role entity
+     * Assigns a role to a user (admin only).
+     * @param uid The user's Firebase UID
+     * @param role The role to assign
+     * @return The updated user
      */
-    @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody UserRegisterDTO registerDTO) {
-        try {
-            // Check if user already exists in Firebase
-            var firebaseUser = firebaseAuthService.getUserByEmail(registerDTO.getEmail());
-            
-            // Check if user role already exists in our database
-            if (userService.existsByEmail(registerDTO.getEmail())) {
-                throw ApiException.badRequest("User already exists");
-            }
-            
-            // Create user role entry
-            UserRole userRole = userService.createUserRole(registerDTO, firebaseUser.getUid());
-            
-            return ResponseEntity.ok(userRole);
-            
-        } catch (FirebaseAuthException e) {
-            throw ApiException.badRequest("User not found in Firebase");
-        }
+    @PostMapping("/admin/users/{uid}/roles")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<User> assignRole(@PathVariable String uid, @RequestParam String role) {
+        User updated = userService.assignRole(uid, role);
+        return ResponseEntity.ok(updated);
     }
 
     /**
-     * Gets current user information from the security context.
-     * @return Current user information
+     * Removes a role from a user (admin only).
+     * @param uid The user's Firebase UID
+     * @param role The role to remove
+     * @return The updated user
      */
-    @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw ApiException.unauthorized("Not authenticated");
-        }
-        
-        String uid = authentication.getName();
-        UserRole userRole = userService.findByFirebaseUid(uid);
-        
-        if (userRole == null) {
-            throw ApiException.notFound("User role not found");
-        }
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("uid", userRole.getFirebaseUid());
-        response.put("email", userRole.getEmail());
-        response.put("role", userRole.getRole());
-        response.put("displayName", userRole.getDisplayName());
-        response.put("isActive", userRole.getIsActive());
-        
-        return ResponseEntity.ok(response);
+    @DeleteMapping("/admin/users/{uid}/roles/{role}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<User> removeRole(@PathVariable String uid, @PathVariable String role) {
+        User updated = userService.removeRole(uid, role);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Retrieves user info and roles by UID.
+     * @param uid The user's Firebase UID
+     * @return The user info or 404 if not found
+     */
+    @GetMapping("/users/{uid}")
+    public ResponseEntity<User> getUser(@PathVariable String uid) {
+        return userService.findByUid(uid)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Retrieves all roles in the system.
+     * @return Set of all roles
+     */
+    @GetMapping("/roles")
+    public ResponseEntity<Set<Role>> getAllRoles() {
+        return ResponseEntity.ok(Set.copyOf(roleService.findAll()));
     }
 } 

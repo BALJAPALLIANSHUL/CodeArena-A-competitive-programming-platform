@@ -2,22 +2,33 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import firebaseAuthService from "../services/firebaseAuthService";
 import { toast } from "react-toastify";
+import apiClient from "../services/apiClient";
 
 /**
  * AuthContext provides Firebase authentication state and actions to the app.
  * Includes user info, authentication state, and auth functions.
+ *
+ * @typedef {Object} AuthContextValue
+ * @property {Object|null} user - The current user object or null if not signed in
+ * @property {boolean} loading - Whether authentication state is loading
+ * @property {function} signIn - Function to sign in a user
+ * @property {function} signOut - Function to sign out the current user
+ * @property {function} register - Function to register a new user
+ * @property {function} resetPassword - Function to send password reset email
+ * @property {boolean} isAuthenticated - Whether a user is authenticated
  */
 const AuthContext = createContext();
 
 /**
  * Custom hook to access authentication context.
- * @returns {object} Auth context value
+ * @returns {AuthContextValue} Auth context value
  */
 export const useAuth = () => useContext(AuthContext);
 
 /**
  * AuthProvider component to wrap the app and provide Firebase authentication state.
  * Handles persistent login, sign-in, sign-out, and registration using Firebase Auth.
+ *
  * @param {object} props - React children
  * @returns {JSX.Element} Auth context provider
  */
@@ -84,26 +95,32 @@ export const AuthProvider = ({ children }) => {
   const register = async (email, password, displayName) => {
     try {
       // Step 1: Register in Firebase Auth
-      const result = await firebaseAuthService.registerUser(
-        email,
-        password,
-        displayName
-      );
+      const result = await firebaseAuthService.registerUser(email, password, displayName);
 
       if (result.success) {
-        // Step 2: Register in backend
-        const backendResponse = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, role: "USER", displayName }),
-        });
-        if (!backendResponse.ok) {
-          // If backend registration fails, delete Firebase user for consistency
+        // Step 2: Register in backend with Firebase UID
+        const firebaseUser = result.user;
+        const payload = {
+          firebaseUid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName || displayName
+        };
+
+        try {
+          await apiClient.post("/auth/register", payload);
+        } catch (backendError) {
+          // Try to extract a clear error message from the backend
+          let errorMsg = "Registration failed. Please try again.";
+          if (backendError.data && (backendError.data.error || backendError.data.message)) {
+            errorMsg = backendError.data.error || backendError.data.message;
+          } else if (backendError.message) {
+            errorMsg = backendError.message;
+          }
           if (window.firebase?.auth?.currentUser) {
             await window.firebase.auth.currentUser.delete();
           }
-          toast.error("Backend registration failed. Please try again.");
-          throw new Error("Backend registration failed");
+          toast.error(errorMsg);
+          throw new Error(errorMsg);
         }
         toast.success(result.message);
         navigate("/signin");
@@ -119,6 +136,7 @@ export const AuthProvider = ({ children }) => {
 
   /**
    * Sign out the current user using Firebase authentication.
+   * @returns {Promise<void>}
    */
   const signOut = async () => {
     try {

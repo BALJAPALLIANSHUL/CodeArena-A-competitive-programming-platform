@@ -16,8 +16,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * Firebase authentication filter for verifying Firebase ID tokens.
- * Replaces JWT-based authentication with Firebase token verification.
+ * Filter for verifying Firebase ID tokens in incoming requests.
+ * Sets authentication in the Spring Security context.
  */
 @Component
 public class FirebaseAuthFilter extends OncePerRequestFilter {
@@ -30,6 +30,14 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
         this.userDetailsService = userDetailsService;
     }
 
+    /**
+     * Processes incoming requests and verifies Firebase ID tokens.
+     * @param request HTTP request
+     * @param response HTTP response
+     * @param filterChain Filter chain
+     * @throws ServletException
+     * @throws IOException
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {

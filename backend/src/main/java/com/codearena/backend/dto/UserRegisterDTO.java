@@ -9,13 +9,18 @@ import lombok.Data;
  */
 @Data
 public class UserRegisterDTO {
-    @Email
-    @NotBlank
+    /**
+     * Firebase UID of the user (from Firebase Auth).
+     */
+    private String firebaseUid;
+
+    /**
+     * User's email address.
+     */
     private String email;
 
-    @NotBlank
-    private String role;
-
-    @NotBlank
+    /**
+     * User's display name.
+     */
     private String displayName;
 } 

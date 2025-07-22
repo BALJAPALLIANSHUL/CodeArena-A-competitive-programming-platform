@@ -1,42 +1,52 @@
 package com.codearena.backend.service;
 
-import com.codearena.backend.entity.UserRole;
-import com.codearena.backend.repository.UserRoleRepository;
+import com.codearena.backend.entity.User;
+import com.codearena.backend.entity.Role;
+import com.codearena.backend.repository.UserRepository;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-
-import java.util.Collections;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Custom UserDetailsService for Firebase authentication.
- * Loads user details from our database using Firebase UID.
+ * Loads user details from our database using Firebase UID and maps all roles to authorities.
  */
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserRoleRepository userRoleRepository;
+    private final UserRepository userRepository;
 
-    public CustomUserDetailsService(UserRoleRepository userRoleRepository) {
-        this.userRoleRepository = userRoleRepository;
+    public CustomUserDetailsService(UserRepository userRepository) {
+        this.userRepository = userRepository;
     }
 
+    /**
+     * Loads user details by Firebase UID.
+     * @param firebaseUid Firebase UID
+     * @return UserDetails for Spring Security
+     * @throws UsernameNotFoundException if user not found or deactivated
+     */
     @Override
     public UserDetails loadUserByUsername(String firebaseUid) throws UsernameNotFoundException {
-        UserRole userRole = userRoleRepository.findByFirebaseUid(firebaseUid)
+        User user = userRepository.findById(firebaseUid)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with Firebase UID: " + firebaseUid));
 
-        if (!userRole.getIsActive()) {
+        if (!user.getIsActive()) {
             throw new UsernameNotFoundException("User is deactivated: " + firebaseUid);
         }
 
-        return new User(
-                userRole.getFirebaseUid(),
+        Set<SimpleGrantedAuthority> authorities = user.getRoles().stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName()))
+                .collect(Collectors.toSet());
+
+        return new org.springframework.security.core.userdetails.User(
+                user.getFirebaseUid(),
                 "", // No password needed for Firebase authentication
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + userRole.getRole()))
+                authorities
         );
     }
 } 

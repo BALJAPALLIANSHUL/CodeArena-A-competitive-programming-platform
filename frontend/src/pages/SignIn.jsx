@@ -3,8 +3,11 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 /**
- * SignIn component for Firebase authentication
- * Provides email/password sign-in and password reset functionality
+ * SignIn page component for Firebase authentication.
+ * Provides email/password sign-in and password reset functionality.
+ *
+ * @component
+ * @returns {JSX.Element}
  */
 const SignIn = () => {
   const { signIn, resetPassword } = useAuth();
@@ -15,8 +18,9 @@ const SignIn = () => {
   const [showResetForm, setShowResetForm] = useState(false);
 
   /**
-   * Handle sign in form submission
-   * @param {Event} e - Form submit event
+   * Handles sign in form submission.
+   * @param {React.FormEvent<HTMLFormElement>} e - Form submit event
+   * @returns {Promise<void>}
    */
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,8 +33,9 @@ const SignIn = () => {
   };
 
   /**
-   * Handle password reset form submission
-   * @param {Event} e - Form submit event
+   * Handles password reset form submission.
+   * @param {React.FormEvent<HTMLFormElement>} e - Form submit event
+   * @returns {Promise<void>}
    */
   const handleResetPassword = async (e) => {
     e.preventDefault();

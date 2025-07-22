@@ -112,6 +112,12 @@ temp/
 service-account-key.json
 firebase-key.json
 firebase-service-account.json
+backend/codearena-service-account.json
+
+# pnpm workspace state files
+.pnpm-workspace-state-v1.json
+.modules.yaml
+.pnpm/
 
 # Database
 *.db

@@ -10,7 +10,7 @@ import java.util.Map;
 
 /**
  * Test controller for basic backend functionality verification.
- * Used to test if the backend is running correctly.
+ * Provides endpoints for health checks and Firebase configuration status.
  */
 @RestController
 @RequestMapping("/api/test")
