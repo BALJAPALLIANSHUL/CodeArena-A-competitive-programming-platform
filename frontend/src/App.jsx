@@ -11,112 +11,15 @@ import Register from "./pages/Register";
 import FirebaseTest from "./components/FirebaseTest";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
-/**
- * Home component for authenticated users
- * Displays welcome message and user information
- */
-const Home = () => {
-  const { user, signOut } = useAuth();
-  const [idToken, setIdToken] = React.useState("");
-  const [showToken, setShowToken] = React.useState(false);
-
-  React.useEffect(() => {
-    // Fetch the ID token for the current user
-    async function fetchToken() {
-      if (user && window.firebase?.auth?.currentUser) {
-        const token = await window.firebase.auth.currentUser.getIdToken();
-        setIdToken(token);
-      } else {
-        setIdToken("");
-      }
-    }
-    fetchToken();
-  }, [user]);
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-extrabold text-gray-900 mb-2">
-            CodeArena
-          </h1>
-          <h2 className="text-2xl font-bold text-gray-700">Welcome back!</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Ready to solve problems and improve your skills? Dive into the
-            arena!
-          </p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-lg p-8 border">
-          <div className="text-center space-y-4">
-            <div className="mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {user?.displayName || "User"}
-              </h3>
-              <p className="text-sm text-gray-600">{user?.email}</p>
-              {user?.emailVerified ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
-                  Email Verified
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">
-                  Email Not Verified
-                </span>
-              )}
-            </div>
-
-            {/* Debug: Show Firebase ID Token for API testing */}
-            {user && (
-              <div className="mb-4 text-left">
-                <button
-                  className="text-xs text-blue-600 underline mb-1"
-                  onClick={() => setShowToken((v) => !v)}
-                >
-                  {showToken ? "Hide" : "Show"} Firebase ID Token
-                </button>
-                {showToken && idToken && (
-                  <div className="bg-gray-100 rounded p-2 text-xs break-all relative">
-                    <textarea
-                      className="w-full bg-gray-100 text-xs font-mono resize-none outline-none"
-                      rows={4}
-                      value={idToken}
-                      readOnly
-                      style={{ minHeight: 60 }}
-                    />
-                    <button
-                      className="absolute top-1 right-1 px-2 py-0.5 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
-                      onClick={() => {
-                        navigator.clipboard.writeText(idToken);
-                      }}
-                    >
-                      Copy
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <button className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                Browse Problems
-              </button>
-              <button className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                Join Contest
-              </button>
-              <button
-                className="w-full py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                onClick={signOut}
-              >
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+import Problems from "./pages/Problems";
+import ProblemCreate from "./pages/ProblemCreate";
+import ProblemDetail from "./pages/ProblemDetail";
+import ProblemEdit from "./pages/ProblemEdit";
+import ProblemDelete from "./pages/ProblemDelete";
+import Dashboard from "./pages/Dashboard";
+import Navbar from "./components/Navbar";
+import AdminUserList from "./pages/AdminUserList";
+import AdminUserRoles from "./pages/AdminUserRoles";
 
 /**
  * Loading component while authentication state is being determined
@@ -154,20 +57,73 @@ function App() {
     <Router>
       <AuthProvider>
         <div className="min-h-screen bg-gray-50">
+          {/* Show Navbar on all pages except sign-in/register */}
           <Routes>
             <Route path="/signin" element={<SignIn />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/test" element={<FirebaseTest />} />
+            {/* Admin user management routes */}
+            <Route path="/admin/users" element={<AdminUserList />} />
+            <Route path="/admin/users/:uid" element={<AdminUserRoles />} />
             <Route
-              path="/"
+              path="*"
               element={
-                <ProtectedRoute>
-                  <Home />
-                </ProtectedRoute>
+                <>
+                  <Navbar />
+                  <Routes>
+                    <Route path="/test" element={<FirebaseTest />} />
+                    <Route
+                      path="/problems"
+                      element={
+                        <ProtectedRoute>
+                          <Problems />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/problems/create"
+                      element={
+                        <ProtectedRoute>
+                          <ProblemCreate />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/problems/:id"
+                      element={
+                        <ProtectedRoute>
+                          <ProblemDetail />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/problems/:id/edit"
+                      element={
+                        <ProtectedRoute>
+                          <ProblemEdit />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/problems/:id/delete"
+                      element={
+                        <ProtectedRoute>
+                          <ProblemDelete />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/"
+                      element={
+                        <ProtectedRoute>
+                          <Dashboard />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </>
               }
             />
-            {/* Redirect any unknown routes to home */}
-            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <ToastContainer
             position="top-center"

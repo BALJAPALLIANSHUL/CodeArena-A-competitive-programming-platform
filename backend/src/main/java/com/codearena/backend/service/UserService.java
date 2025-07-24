@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.List;
 
 /**
  * Service for user management operations.
@@ -99,6 +100,16 @@ public class UserService {
     public User removeRole(String firebaseUid, String roleName) {
         User user = userRepository.findById(firebaseUid)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        // Prevent removing ADMIN from the last admin
+        if ("ADMIN".equals(roleName)) {
+            // Count number of admins
+            long adminCount = userRepository.findAll().stream()
+                .filter(u -> u.getRoles().stream().anyMatch(r -> "ADMIN".equals(r.getName())))
+                .count();
+            if (adminCount <= 1 && user.getRoles().stream().anyMatch(r -> r.getName().equals("ADMIN"))) {
+                throw new IllegalStateException("Cannot remove ADMIN role from the last admin user.");
+            }
+        }
         user.getRoles().removeIf(r -> r.getName().equals(roleName));
         return userRepository.save(user);
     }
@@ -112,5 +123,13 @@ public class UserService {
         User user = userRepository.findById(firebaseUid)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         return user.getRoles();
+    }
+
+    /**
+     * Returns all users in the system.
+     * @return List of all users
+     */
+    public List<User> findAll() {
+        return userRepository.findAll();
     }
 } 

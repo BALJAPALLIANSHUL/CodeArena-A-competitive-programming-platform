@@ -10,17 +10,21 @@ import lombok.Data;
 @Data
 public class UserRegisterDTO {
     /**
-     * Firebase UID of the user (from Firebase Auth).
+     * Firebase UID of the user (from Firebase Auth). Must not be blank.
      */
+    @NotBlank(message = "firebaseUid must not be blank")
     private String firebaseUid;
 
     /**
-     * User's email address.
+     * User's email address. Must not be blank and must be a valid email.
      */
+    @NotBlank(message = "email must not be blank")
+    @Email(message = "email must be a valid email address")
     private String email;
 
     /**
-     * User's display name.
+     * User's display name. Must not be blank.
      */
+    @NotBlank(message = "displayName must not be blank")
     private String displayName;
 } 

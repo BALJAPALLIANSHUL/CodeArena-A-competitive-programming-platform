@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import firebaseAuthService from "../services/firebaseAuthService";
 import { toast } from "react-toastify";
 import apiClient from "../services/apiClient";
+import { auth } from "../config/firebase";
 
 /**
  * AuthContext provides Firebase authentication state and actions to the app.
@@ -39,28 +40,51 @@ export const AuthProvider = ({ children }) => {
     useState(null); // For retry flow
   const navigate = useNavigate();
 
+  // Helper to fetch backend user info (including roles)
+  const fetchBackendUser = async (uid, idToken) => {
+    const res = await apiClient.get(`/users/${uid}`, {
+      headers: { Authorization: `Bearer ${idToken}` },
+    });
+    return res.data && res.data.roles
+      ? { ...res.data, roles: res.data.roles.map((r) => r.name || r) }
+      : { ...res.data, roles: [] };
+  };
+
+  // Listen to Firebase authentication state changes
   useEffect(() => {
-    // Listen to Firebase authentication state changes
     const unsubscribe = firebaseAuthService.onAuthStateChange(
-      (firebaseUser) => {
+      async (firebaseUser) => {
         if (firebaseUser) {
-          // User is signed in
-          setUser({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            emailVerified: firebaseUser.emailVerified,
-            photoURL: firebaseUser.photoURL,
-          });
+          try {
+            const idToken = await firebaseUser.getIdToken();
+            const backendUser = await fetchBackendUser(
+              firebaseUser.uid,
+              idToken
+            );
+            setUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName,
+              emailVerified: firebaseUser.emailVerified,
+              photoURL: firebaseUser.photoURL,
+              roles: backendUser.roles || [],
+            });
+          } catch {
+            setUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName,
+              emailVerified: firebaseUser.emailVerified,
+              photoURL: firebaseUser.photoURL,
+              roles: [],
+            });
+          }
         } else {
-          // User is signed out
           setUser(null);
         }
         setLoading(false);
       }
     );
-
-    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
 
@@ -71,59 +95,30 @@ export const AuthProvider = ({ children }) => {
    * @returns {Promise<void>}
    */
   const signIn = async (email, password) => {
+    setLoading(true);
     try {
       const result = await firebaseAuthService.signInUser(email, password);
-
       if (result.success) {
-        // Try to fetch user info from backend
-        let backendUser = null;
-        try {
-          const res = await apiClient.get(`/users/${result.user.uid}`, {
-            headers: {
-              Authorization: `Bearer ${await result.user.getIdToken()}`,
-            },
-          });
-          backendUser = res.data;
-        } catch (err) {
-          // Only propagate the error to the page
-          throw new Error(
-            "Our servers are temporarily unavailable. Please try again later."
-          );
-        }
-        // Only check email verification if backend call succeeded
+        const idToken = await result.user.getIdToken();
+        const backendUser = await fetchBackendUser(result.user.uid, idToken);
+        setUser({
+          uid: result.user.uid,
+          email: result.user.email,
+          displayName: result.user.displayName,
+          emailVerified: result.user.emailVerified,
+          photoURL: result.user.photoURL,
+          roles: backendUser.roles || [],
+        });
         toast.success(result.message);
         navigate("/");
       } else {
-        // Show specific error messages for common Firebase errors
-        if (result.code === "auth/user-not-found") {
-          throw new Error("No account found with this email address.");
-        } else if (result.code === "auth/wrong-password") {
-          throw new Error("Incorrect password. Please try again.");
-        } else if (result.code === "auth/user-disabled") {
-          throw new Error("This account has been disabled.");
-        } else if (result.code === "auth/too-many-requests") {
-          throw new Error("Too many failed attempts. Please try again later.");
-        } else {
-          // Only show toast for backend/network/internal errors
-        }
-        throw new Error(result.error);
+        throw new Error(mapAuthError(result.error));
       }
     } catch (err) {
-      if (
-        err.message ===
-          "Please verify your email before logging in. Check your inbox for a verification link." ||
-        err.message === "No account found with this email address." ||
-        err.message === "Incorrect password. Please try again." ||
-        err.message === "This account has been disabled." ||
-        err.message === "Too many failed attempts. Please try again later."
-      ) {
-        // Do not show toast here; page will handle inline error
-        throw err;
-        // Ensure no further error handling occurs
-        return;
-      }
-      // Only show toast for backend/network/internal errors
-      throw err;
+      setUser(null);
+      throw new Error(mapAuthError(err));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -135,86 +130,34 @@ export const AuthProvider = ({ children }) => {
    * @returns {Promise<void>}
    */
   const register = async (email, password, displayName) => {
+    setLoading(true);
     try {
-      // Step 1: Register in Firebase Auth
       const result = await firebaseAuthService.registerUser(
         email,
         password,
         displayName
       );
-
       if (result.success) {
-        // Step 2: Register in backend with Firebase UID
         const firebaseUser = result.user;
         const payload = {
           firebaseUid: firebaseUser.uid,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName || displayName,
         };
-
-        try {
-          await apiClient.post("/auth/register", payload);
-        } catch (backendError) {
-          setPendingBackendRegistration({ firebaseUser, displayName });
-          let errorMsg = "Registration failed. Please try again.";
-          let errorCode = backendError.code || backendError.status || "";
-          if (
-            backendError.data &&
-            (backendError.data.error || backendError.data.message)
-          ) {
-            errorMsg = backendError.data.error || backendError.data.message;
-          } else if (backendError.message) {
-            errorMsg = backendError.message;
-          }
-          if (window.firebase?.auth?.currentUser) {
-            await window.firebase.auth.currentUser.delete();
-          }
-          // Only show toast for backend/network/internal errors
-          if (
-            errorMsg.includes("email already exists") ||
-            errorMsg.includes("UID already exists") ||
-            errorCode === "NETWORK_ERROR" ||
-            errorMsg.toLowerCase().includes("network") ||
-            errorCode === "TIMEOUT"
-          ) {
-            toast.error(errorMsg);
-          }
-          throw new Error(errorMsg);
-        }
+        await apiClient.post("/auth/register", payload);
         toast.success(
           "Registration successful! Please check your email to verify your account before signing in."
         );
         setPendingBackendRegistration(null);
         navigate("/signin");
       } else {
-        // Show specific error messages for common Firebase errors
-        if (
-          result.code === "auth/email-already-in-use" ||
-          result.code === "auth/weak-password" ||
-          result.code === "auth/invalid-email" ||
-          result.code === "auth/network-request-failed"
-        ) {
-          // Do not show toast here; page will handle inline error
-          throw new Error(result.error);
-        } else {
-          toast.error(result.error || "Registration failed");
-        }
-        setPendingBackendRegistration(null);
-        throw new Error(result.error);
+        throw new Error(mapAuthError(result.error));
       }
     } catch (err) {
-      if (
-        err.message.includes("Passwords do not match") ||
-        err.message.includes("Password must be at least") ||
-        err.message.includes("email already exists") ||
-        err.message.includes("weak password") ||
-        err.message.includes("invalid email")
-      ) {
-        // Do not show toast here; page will handle inline error
-        throw err;
-      }
-      toast.error(err.message || "Registration failed");
-      throw err;
+      setUser(null);
+      throw new Error(mapAuthError(err));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -248,40 +191,8 @@ export const AuthProvider = ({ children }) => {
       } else if (backendError.message) {
         errorMsg = backendError.message;
       }
-      if (
-        errorMsg.includes("Firebase user does not exist") ||
-        errorMsg.includes("FIREBASE_USER_NOT_FOUND")
-      ) {
-        toast.error(
-          "Your registration session has expired. Please register again."
-        );
-        setPendingBackendRegistration(null);
-        navigate("/register");
-        return;
-      }
-      if (errorMsg.includes("email already exists")) {
-        toast.error(
-          "An account with this email already exists. Try signing in or resetting your password."
-        );
-      } else if (errorMsg.includes("UID already exists")) {
-        toast.error(
-          "A user with this account already exists. Please try signing in."
-        );
-      } else if (
-        errorCode === "NETWORK_ERROR" ||
-        errorMsg.toLowerCase().includes("network")
-      ) {
-        toast.error(
-          "Network error. Please check your connection and try again."
-        );
-      } else if (errorCode === "TIMEOUT") {
-        toast.error(
-          "Our servers are temporarily unavailable. Please try again later."
-        );
-      } else {
-        toast.error(errorMsg);
-      }
-      throw new Error(errorMsg);
+      toast.error(mapAuthError(errorMsg));
+      throw new Error(mapAuthError(errorMsg));
     }
   };
 
@@ -314,8 +225,8 @@ export const AuthProvider = ({ children }) => {
       } else if (backendError.message) {
         errorMsg = backendError.message;
       }
-      toast.error(errorMsg);
-      throw new Error(errorMsg);
+      toast.error(mapAuthError(errorMsg));
+      throw new Error(mapAuthError(errorMsg));
     }
   };
 
@@ -324,9 +235,10 @@ export const AuthProvider = ({ children }) => {
    * @returns {Promise<void>}
    */
   const signOut = async () => {
+    setLoading(true);
     try {
       const result = await firebaseAuthService.signOutUser();
-
+      setUser(null);
       if (result.success) {
         toast.info(result.message);
         navigate("/signin");
@@ -335,6 +247,8 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (err) {
       toast.error("Sign out failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -346,7 +260,6 @@ export const AuthProvider = ({ children }) => {
   const resetPassword = async (email) => {
     try {
       const result = await firebaseAuthService.resetPassword(email);
-
       if (result.success) {
         toast.success(result.message);
       } else {
@@ -357,6 +270,15 @@ export const AuthProvider = ({ children }) => {
       toast.error(err.message || "Password reset failed");
       throw err;
     }
+  };
+
+  /**
+   * Check if the current user has a specific role.
+   * @param {string} role
+   * @returns {boolean}
+   */
+  const hasRole = (role) => {
+    return user && Array.isArray(user.roles) && user.roles.includes(role);
   };
 
   const value = {
@@ -370,7 +292,67 @@ export const AuthProvider = ({ children }) => {
     completeBackendRegistration,
     pendingBackendRegistration,
     isAuthenticated: !!user,
+    hasRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+// Utility to map error codes/messages to user-friendly messages
+function mapAuthError(error) {
+  if (!error) return "An unknown error occurred.";
+  const msg = error.message || error;
+  // Firebase Auth errors
+  if (msg.includes("invalid-email")) {
+    return "The email address is invalid. Please check for typos.";
+  }
+  if (msg.includes("user-not-found") || msg.includes("No account found")) {
+    return "No account exists for this email. Please check for typos or register for a new account.";
+  }
+  if (msg.includes("wrong-password") || msg.includes("Incorrect password")) {
+    return "The password you entered is incorrect. Please check your password and try again, or use 'Forgot your password?' to reset it.";
+  }
+  if (
+    msg.includes("email-already-in-use") ||
+    msg.includes("email already exists")
+  ) {
+    return "An account with this email already exists. Try signing in or resetting your password.";
+  }
+  if (msg.includes("weak-password")) {
+    return "Your password is too weak. Please use at least 6 characters, including numbers and letters.";
+  }
+  if (msg.includes("verify your email")) {
+    return "Your email address is not verified. Please check your inbox (and spam folder) for a verification link, or click here to resend the verification email.";
+  }
+  if (msg.includes("disabled")) {
+    return "Your account has been disabled. Please contact support for more information.";
+  }
+  if (msg.includes("too many failed attempts")) {
+    return "Too many failed login attempts. Please wait a few minutes and try again.";
+  }
+  if (msg.toLowerCase().includes("network")) {
+    return "We couldn't connect to the server. Please check your internet connection, or try again in a few minutes. If the problem persists, contact support.";
+  }
+  if (
+    msg.includes("Internal Server Error") ||
+    msg.includes("HTTP 500") ||
+    msg.includes("Server Error") ||
+    msg.includes("Failed to fetch")
+  ) {
+    return "Our servers are temporarily unavailable. Please try again later. If the problem persists, contact support.";
+  }
+  if (msg.includes("FIREBASE_USER_NOT_FOUND")) {
+    return "Your registration session has expired. Please register again.";
+  }
+  if (msg.includes("UID already exists")) {
+    return "A user with this account already exists. Please try signing in.";
+  }
+  if (msg.includes("Passwords do not match")) {
+    return "The passwords you entered do not match. Please re-enter them.";
+  }
+  if (msg.includes("Password must be at least")) {
+    return "Password must be at least 6 characters long.";
+  }
+  // Fallback
+  return msg;
+}

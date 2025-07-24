@@ -36,4 +36,7 @@ if (import.meta.env.DEV) {
   };
 }
 
-export { app, auth, db, analytics }; 
+// Make auth available globally for legacy code
+window.firebase = { auth };
+
+export { auth }; 

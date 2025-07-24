@@ -5,6 +5,9 @@
  * @module apiClient
  */
 
+import { auth } from "../config/firebase";
+import { getIdToken } from "firebase/auth";
+
 // Base API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const API_TIMEOUT = 30000; // 30 seconds
@@ -40,14 +43,16 @@ class ApiClient {
      */
     async getAuthToken() {
         try {
-            const { getAuth } = await import('firebase/auth');
-            const { auth } = await import('../config/firebase');
-            const user = getAuth(auth).currentUser;
-            return user ? await user.getIdToken() : null;
-        } catch (error) {
-            console.warn('Failed to get auth token:', error);
-            return null;
+            if (auth && auth.currentUser) {
+                return await getIdToken(auth.currentUser, false);
+            }
+            if (window.firebase?.auth?.currentUser) {
+                return await window.firebase.auth.currentUser.getIdToken();
+            }
+        } catch (err) {
+            console.error("Failed to get auth token:", err);
         }
+        return null;
     }
 
     /**

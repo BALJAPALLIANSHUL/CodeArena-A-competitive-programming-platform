@@ -13,6 +13,9 @@ import jakarta.validation.Valid;
 import com.codearena.backend.dto.ApiResponse;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.codearena.backend.service.FirebaseAuthService;
+import java.util.List;
+import com.codearena.backend.dto.UserResponseDTO;
+import java.util.stream.Collectors;
 
 /**
  * REST controller for user and role management endpoints.
@@ -37,16 +40,7 @@ public class UserController {
      * @return The created user or error response
      */
     @PostMapping("/auth/register")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody UserRegisterDTO dto) {
-        if (dto.getFirebaseUid() == null || dto.getFirebaseUid().isEmpty()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("firebaseUid must not be null or empty", "VALIDATION_ERROR"));
-        }
-        if (dto.getEmail() == null || dto.getEmail().isEmpty()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("email must not be null or empty", "VALIDATION_ERROR"));
-        }
-        if (dto.getDisplayName() == null || dto.getDisplayName().isEmpty()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("displayName must not be null or empty", "VALIDATION_ERROR"));
-        }
+    public ResponseEntity<ApiResponse<User>> registerUser(@Valid @RequestBody UserRegisterDTO dto) {
         // Guard: Check if Firebase UID exists in Firebase Auth
         try {
             firebaseAuthService.getUserByUid(dto.getFirebaseUid());
@@ -57,7 +51,7 @@ public class UserController {
             ));
         }
         User created = userService.registerUser(dto.getFirebaseUid(), dto.getEmail(), dto.getDisplayName());
-        return ResponseEntity.ok(created);
+        return ResponseEntity.ok(ApiResponse.success(created, "User registered successfully."));
     }
 
     /**
@@ -68,9 +62,9 @@ public class UserController {
      */
     @PostMapping("/admin/users/{uid}/roles")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<User> assignRole(@PathVariable String uid, @RequestParam String role) {
+    public ResponseEntity<ApiResponse<User>> assignRole(@PathVariable String uid, @RequestParam String role) {
         User updated = userService.assignRole(uid, role);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Role '" + role + "' assigned to user."));
     }
 
     /**
@@ -81,9 +75,9 @@ public class UserController {
      */
     @DeleteMapping("/admin/users/{uid}/roles/{role}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<User> removeRole(@PathVariable String uid, @PathVariable String role) {
+    public ResponseEntity<ApiResponse<User>> removeRole(@PathVariable String uid, @PathVariable String role) {
         User updated = userService.removeRole(uid, role);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Role '" + role + "' removed from user."));
     }
 
     /**
@@ -92,9 +86,9 @@ public class UserController {
      * @return The user info or 404 if not found
      */
     @GetMapping("/users/{uid}")
-    public ResponseEntity<?> getUser(@PathVariable String uid) {
+    public ResponseEntity<ApiResponse<User>> getUser(@PathVariable String uid) {
         return userService.findByUid(uid)
-                .<ResponseEntity<?>>map(user -> ResponseEntity.ok(user))
+                .map(user -> ResponseEntity.ok(ApiResponse.success(user, "User found.")))
                 .orElse(ResponseEntity.status(404).body(ApiResponse.error("User not found in backend. Please complete registration.", "USER_NOT_FOUND")));
     }
 
@@ -103,7 +97,30 @@ public class UserController {
      * @return Set of all roles
      */
     @GetMapping("/roles")
-    public ResponseEntity<Set<Role>> getAllRoles() {
-        return ResponseEntity.ok(Set.copyOf(roleService.findAll()));
+    public ResponseEntity<ApiResponse<Set<Role>>> getAllRoles() {
+        Set<Role> roles = Set.copyOf(roleService.findAll());
+        return ResponseEntity.ok(ApiResponse.success(roles, "All roles retrieved successfully."));
+    }
+
+    /**
+     * Retrieves all users (admin only).
+     * @return List of all users
+     */
+    @GetMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<UserResponseDTO>>> getAllUsers() {
+        List<User> users = userService.findAll();
+        List<UserResponseDTO> dtos = users.stream().map(user -> {
+            System.out.println("Mapping user: " + user.getFirebaseUid());
+            UserResponseDTO dto = new UserResponseDTO();
+            dto.setFirebaseUid(user.getFirebaseUid());
+            dto.setEmail(user.getEmail());
+            dto.setDisplayName(user.getDisplayName());
+            dto.setRoles(user.getRoles() != null
+                ? user.getRoles().stream().map(Role::getName).collect(Collectors.toList())
+                : List.of());
+            return dto;
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.success(dtos, "All users retrieved successfully."));
     }
 } 
