@@ -38,9 +38,11 @@ public class Problem {
     @ElementCollection
     @CollectionTable(name = "problem_tags", joinColumns = @JoinColumn(name = "problem_id"))
     @Column(name = "tag")
+    @Builder.Default
     private Set<String> tags = new HashSet<>();
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean isPublic = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -48,8 +50,14 @@ public class Problem {
     private User createdBy;
 
     @Column(nullable = false)
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(nullable = false)
+    @Builder.Default
     private LocalDateTime updatedAt = LocalDateTime.now();
+
+    @OneToMany(mappedBy = "problem", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
+    private Set<TestCase> testCases = new HashSet<>();
 } 

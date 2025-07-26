@@ -19,4 +19,5 @@ public class ProblemResponseDTO {
     private String createdBy;
     private String createdAt;
     private String updatedAt;
+    private Long testCaseCount; // Number of test cases for this problem
 } 

@@ -150,6 +150,7 @@ public class ProblemService {
         dto.setCreatedBy(problem.getCreatedBy() != null ? problem.getCreatedBy().getDisplayName() : null);
         dto.setCreatedAt(problem.getCreatedAt() != null ? problem.getCreatedAt().toString() : null);
         dto.setUpdatedAt(problem.getUpdatedAt() != null ? problem.getUpdatedAt().toString() : null);
+        dto.setTestCaseCount((long) problem.getTestCases().size());
         return dto;
     }
 } 
