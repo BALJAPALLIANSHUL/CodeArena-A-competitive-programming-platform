@@ -321,7 +321,7 @@ FIREBASE_PROJECT_ID=your-project-id
 GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-key.json
 
 # Frontend Environment Variables
-VITE_API_URL=https://codearena-backend-xxx-uc.a.run.app
+VITE_API_URL=https://codearena-backend-xxx-uc.a.run.app/api
 VITE_FIREBASE_API_KEY=your-firebase-api-key
 VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=your-project-id

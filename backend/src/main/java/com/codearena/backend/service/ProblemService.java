@@ -150,7 +150,15 @@ public class ProblemService {
         dto.setCreatedBy(problem.getCreatedBy() != null ? problem.getCreatedBy().getDisplayName() : null);
         dto.setCreatedAt(problem.getCreatedAt() != null ? problem.getCreatedAt().toString() : null);
         dto.setUpdatedAt(problem.getUpdatedAt() != null ? problem.getUpdatedAt().toString() : null);
-        dto.setTestCaseCount((long) problem.getTestCases().size());
+        
+        // Safely get test case count to avoid ConcurrentModificationException
+        try {
+            dto.setTestCaseCount((long) problem.getTestCases().size());
+        } catch (Exception e) {
+            // If there's an issue with lazy loading, set to 0
+            dto.setTestCaseCount(0L);
+        }
+        
         return dto;
     }
 } 

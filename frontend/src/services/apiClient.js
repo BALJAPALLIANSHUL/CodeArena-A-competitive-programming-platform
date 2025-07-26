@@ -9,7 +9,7 @@ import { auth } from "../config/firebase";
 import { getIdToken } from "firebase/auth";
 
 // Base API configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 const API_TIMEOUT = 30000; // 30 seconds
 
 /**

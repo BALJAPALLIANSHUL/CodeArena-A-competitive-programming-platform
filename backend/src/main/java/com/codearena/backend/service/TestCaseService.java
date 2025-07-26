@@ -65,13 +65,18 @@ public class TestCaseService {
             throw new IllegalArgumentException("Test case name already exists for this problem");
         }
         
+        // Calculate file sizes from content
+        long inputSize = cloudStorageService.calculateFileSize(dto.getInputContent());
+        long outputSize = cloudStorageService.calculateFileSize(dto.getOutputContent());
+        long totalFileSize = inputSize + outputSize;
+        
         // Create test case entity
         TestCase testCase = TestCase.builder()
                 .name(dto.getName())
                 .description(dto.getDescription())
                 .inputFileName("input.txt")
                 .outputFileName("output.txt")
-                .fileSize(0L) // Will be updated after file upload
+                .fileSize(totalFileSize) // Use calculated size
                 .isHidden(dto.getIsHidden())
                 .isSample(dto.getIsSample())
                 .problem(problem)
@@ -82,15 +87,23 @@ public class TestCaseService {
         
         testCase = testCaseRepository.save(testCase);
         
-        // Upload files to Cloud Storage
-        cloudStorageService.uploadTestCaseFile(problemId, testCase.getId(), "input.txt", dto.getInputContent());
-        cloudStorageService.uploadTestCaseFile(problemId, testCase.getId(), "output.txt", dto.getOutputContent());
-        
-        // Update file size
-        long inputSize = cloudStorageService.getTestCaseFileSize(problemId, testCase.getId(), "input.txt");
-        long outputSize = cloudStorageService.getTestCaseFileSize(problemId, testCase.getId(), "output.txt");
-        testCase.setFileSize(inputSize + outputSize);
-        testCase = testCaseRepository.save(testCase);
+        // Upload files to Cloud Storage (with error handling)
+        try {
+            cloudStorageService.uploadTestCaseFile(problemId, testCase.getId(), "input.txt", dto.getInputContent());
+            cloudStorageService.uploadTestCaseFile(problemId, testCase.getId(), "output.txt", dto.getOutputContent());
+            
+            // Update file size from Cloud Storage if available
+            long actualInputSize = cloudStorageService.getTestCaseFileSize(problemId, testCase.getId(), "input.txt");
+            long actualOutputSize = cloudStorageService.getTestCaseFileSize(problemId, testCase.getId(), "output.txt");
+            if (actualInputSize > 0 || actualOutputSize > 0) {
+                testCase.setFileSize(actualInputSize + actualOutputSize);
+                testCase = testCaseRepository.save(testCase);
+            }
+        } catch (Exception e) {
+            // Log error but don't fail the request
+            System.err.println("Failed to upload test case files to Cloud Storage: " + e.getMessage());
+            // Continue with the test case creation using calculated file size
+        }
         
         return toResponseDTO(testCase, false); // Don't include content for regular users
     }
@@ -124,18 +137,39 @@ public class TestCaseService {
         testCase.setIsSample(dto.getIsSample());
         testCase.setUpdatedAt(LocalDateTime.now());
         
-        // Update files if provided
-        if (dto.getInputContent() != null) {
-            cloudStorageService.updateTestCaseFile(testCase.getProblem().getId(), testCaseId, "input.txt", dto.getInputContent());
+        // Calculate new file size if content is provided
+        long newFileSize = testCase.getFileSize(); // Keep existing size as default
+        if (dto.getInputContent() != null || dto.getOutputContent() != null) {
+            long inputSize = dto.getInputContent() != null ? 
+                cloudStorageService.calculateFileSize(dto.getInputContent()) : 
+                cloudStorageService.getTestCaseFileSize(testCase.getProblem().getId(), testCaseId, "input.txt");
+            long outputSize = dto.getOutputContent() != null ? 
+                cloudStorageService.calculateFileSize(dto.getOutputContent()) : 
+                cloudStorageService.getTestCaseFileSize(testCase.getProblem().getId(), testCaseId, "output.txt");
+            newFileSize = inputSize + outputSize;
         }
-        if (dto.getOutputContent() != null) {
-            cloudStorageService.updateTestCaseFile(testCase.getProblem().getId(), testCaseId, "output.txt", dto.getOutputContent());
-        }
+        testCase.setFileSize(newFileSize);
         
-        // Update file size
-        long inputSize = cloudStorageService.getTestCaseFileSize(testCase.getProblem().getId(), testCaseId, "input.txt");
-        long outputSize = cloudStorageService.getTestCaseFileSize(testCase.getProblem().getId(), testCaseId, "output.txt");
-        testCase.setFileSize(inputSize + outputSize);
+        // Update files if provided
+        try {
+            if (dto.getInputContent() != null) {
+                cloudStorageService.updateTestCaseFile(testCase.getProblem().getId(), testCaseId, "input.txt", dto.getInputContent());
+            }
+            if (dto.getOutputContent() != null) {
+                cloudStorageService.updateTestCaseFile(testCase.getProblem().getId(), testCaseId, "output.txt", dto.getOutputContent());
+            }
+            
+            // Update file size from Cloud Storage if available
+            long actualInputSize = cloudStorageService.getTestCaseFileSize(testCase.getProblem().getId(), testCaseId, "input.txt");
+            long actualOutputSize = cloudStorageService.getTestCaseFileSize(testCase.getProblem().getId(), testCaseId, "output.txt");
+            if (actualInputSize > 0 || actualOutputSize > 0) {
+                testCase.setFileSize(actualInputSize + actualOutputSize);
+            }
+        } catch (Exception e) {
+            // Log error but don't fail the request
+            System.err.println("Failed to update test case files in Cloud Storage: " + e.getMessage());
+            // Continue with the update using calculated file size
+        }
         
         testCase = testCaseRepository.save(testCase);
         return toResponseDTO(testCase, false);

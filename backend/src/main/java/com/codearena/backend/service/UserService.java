@@ -5,6 +5,8 @@ import com.codearena.backend.entity.User;
 import com.codearena.backend.repository.UserRepository;
 import com.codearena.backend.repository.RoleRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -63,8 +65,9 @@ public class UserService {
      * @param firebaseUid Firebase UID
      * @return Optional of User
      */
+    @Cacheable(value = "users", key = "#firebaseUid")
     public Optional<User> findByUid(String firebaseUid) {
-        return userRepository.findById(firebaseUid);
+        return userRepository.findByIdWithRoles(firebaseUid);
     }
 
     /**
@@ -82,6 +85,7 @@ public class UserService {
      * @param roleName Role name
      * @return Updated User
      */
+    @CacheEvict(value = "users", key = "#firebaseUid")
     public User assignRole(String firebaseUid, String roleName) {
         User user = userRepository.findById(firebaseUid)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -97,6 +101,7 @@ public class UserService {
      * @param roleName Role name
      * @return Updated User
      */
+    @CacheEvict(value = "users", key = "#firebaseUid")
     public User removeRole(String firebaseUid, String roleName) {
         User user = userRepository.findById(firebaseUid)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));

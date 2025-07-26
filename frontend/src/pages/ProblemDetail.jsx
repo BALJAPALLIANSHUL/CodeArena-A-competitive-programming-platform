@@ -103,6 +103,15 @@ const ProblemDetail = () => {
             {problem.description}
           </div>
           <div className="flex space-x-2">
+            {/* Test Cases Link */}
+            <button
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
+              onClick={() => navigate(`/problems/${problem.id}/testcases`)}
+            >
+              Test Cases ({problem.testCaseCount || 0})
+            </button>
+            
+            {/* Edit/Delete buttons for problem creators/admins */}
             {(hasRole("PROBLEM_SETTER") || hasRole("ADMIN")) &&
               user &&
               (user.displayName === problem.createdBy || hasRole("ADMIN")) && (

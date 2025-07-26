@@ -8,6 +8,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -31,8 +32,9 @@ public class CustomUserDetailsService implements UserDetailsService {
      * @throws UsernameNotFoundException if user not found or deactivated
      */
     @Override
+    @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String firebaseUid) throws UsernameNotFoundException {
-        User user = userRepository.findById(firebaseUid)
+        User user = userRepository.findByIdWithRoles(firebaseUid)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with Firebase UID: " + firebaseUid));
 
         if (!user.getIsActive()) {

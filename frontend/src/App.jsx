@@ -20,6 +20,9 @@ import Dashboard from "./pages/Dashboard";
 import Navbar from "./components/Navbar";
 import AdminUserList from "./pages/AdminUserList";
 import AdminUserRoles from "./pages/AdminUserRoles";
+import TestCaseListPage from "./pages/TestCaseListPage";
+import TestCaseCreate from "./pages/TestCaseCreate";
+import TestCaseEdit from "./pages/TestCaseEdit";
 
 /**
  * Loading component while authentication state is being determined
@@ -87,11 +90,28 @@ function App() {
                         </ProtectedRoute>
                       }
                     />
+                    {/* Test Case Management Routes - Must come before /problems/:id */}
                     <Route
-                      path="/problems/:id"
+                      path="/problems/:problemId/testcases/create"
                       element={
                         <ProtectedRoute>
-                          <ProblemDetail />
+                          <TestCaseCreate />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/problems/:problemId/testcases/:testCaseId/edit"
+                      element={
+                        <ProtectedRoute>
+                          <TestCaseEdit />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/problems/:problemId/testcases"
+                      element={
+                        <ProtectedRoute>
+                          <TestCaseListPage />
                         </ProtectedRoute>
                       }
                     />
@@ -108,6 +128,14 @@ function App() {
                       element={
                         <ProtectedRoute>
                           <ProblemDelete />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/problems/:id"
+                      element={
+                        <ProtectedRoute>
+                          <ProblemDetail />
                         </ProtectedRoute>
                       }
                     />

@@ -45,7 +45,7 @@ public class User {
     /**
      * Roles assigned to the user.
      */
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "user_roles",
         joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "firebase_uid"),
